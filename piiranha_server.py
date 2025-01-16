@@ -24,15 +24,28 @@ class TextInput(BaseModel):
 
 def contains_pii(text: str) -> bool:
     """Check if text contains any PII using the PII detection model"""
+    MAX_TOKENS = 256
     try:
-        inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
-        inputs = {k: v.to(device) for k, v in inputs.items()}
-
-        with torch.no_grad():
-            outputs = model(**inputs)
-
-        predictions = torch.argmax(outputs.logits, dim=-1)
-        return any(label != model.config.label2id['O'] for label in predictions[0])
+        # Split text into chunks of MAX_TOKENS tokens
+        tokens = tokenizer.encode(text, add_special_tokens=False)
+        chunks = [tokens[i:i + MAX_TOKENS] for i in range(0, len(tokens), MAX_TOKENS)]
+        
+        for chunk in chunks:
+            # Convert chunk back to text
+            chunk_text = tokenizer.decode(chunk)
+            
+            # Process each chunk
+            inputs = tokenizer(chunk_text, return_tensors="pt", truncation=True, padding=True)
+            inputs = {k: v.to(device) for k, v in inputs.items()}
+            
+            with torch.no_grad():
+                outputs = model(**inputs)
+            
+            predictions = torch.argmax(outputs.logits, dim=-1)
+            if any(label != model.config.label2id['O'] for label in predictions[0]):
+                return True
+                
+        return False
     except Exception as e:
         print(f"Error in contains_pii: {e}")
         return True  # Assume PII exists if we can't check
