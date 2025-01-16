@@ -37,43 +37,54 @@ def contains_pii(text: str) -> bool:
 
 def mask_pii(text: str, aggregate_redaction: bool = True) -> str:
     """Mask PII in text using the PII detection model"""
-    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
-    inputs = {k: v.to(device) for k, v in inputs.items()}
-
-    with torch.no_grad():
-        outputs = model(**inputs)
-
-    predictions = torch.argmax(outputs.logits, dim=-1)
-    encoded_inputs = tokenizer.encode_plus(text, return_offsets_mapping=True, add_special_tokens=True)
-    offset_mapping = encoded_inputs['offset_mapping']
-
+    MAX_TOKENS = 256
     masked_text = list(text)
-    is_redacting = False
-    redaction_start = 0
-    current_pii_type = ''
+    
+    # Split text into chunks of MAX_TOKENS tokens
+    tokens = tokenizer.encode(text, add_special_tokens=False)
+    chunks = [tokens[i:i + MAX_TOKENS] for i in range(0, len(tokens), MAX_TOKENS)]
+    
+    for chunk in chunks:
+        # Convert chunk back to text
+        chunk_text = tokenizer.decode(chunk)
+        
+        # Process each chunk
+        inputs = tokenizer(chunk_text, return_tensors="pt", truncation=True, padding=True)
+        inputs = {k: v.to(device) for k, v in inputs.items()}
 
-    for i, (start, end) in enumerate(offset_mapping):
-        if start == end:  # Special token
-            continue
+        with torch.no_grad():
+            outputs = model(**inputs)
 
-        label = predictions[0][i].item()
-        if label != model.config.label2id['O']:  # Non-O label
-            pii_type = model.config.id2label[label]
-            if not is_redacting:
-                is_redacting = True
-                redaction_start = start
-                current_pii_type = pii_type
-            elif not aggregate_redaction and pii_type != current_pii_type:
-                apply_redaction(masked_text, redaction_start, start, current_pii_type, aggregate_redaction)
-                redaction_start = start
-                current_pii_type = pii_type
-        else:
-            if is_redacting:
-                apply_redaction(masked_text, redaction_start, end, current_pii_type, aggregate_redaction)
-                is_redacting = False
+        predictions = torch.argmax(outputs.logits, dim=-1)
+        encoded_inputs = tokenizer.encode_plus(chunk_text, return_offsets_mapping=True, add_special_tokens=True)
+        offset_mapping = encoded_inputs['offset_mapping']
 
-    if is_redacting:
-        apply_redaction(masked_text, redaction_start, len(masked_text), current_pii_type, aggregate_redaction)
+        is_redacting = False
+        redaction_start = 0
+        current_pii_type = ''
+
+        for i, (start, end) in enumerate(offset_mapping):
+            if start == end:  # Special token
+                continue
+
+            label = predictions[0][i].item()
+            if label != model.config.label2id['O']:  # Non-O label
+                pii_type = model.config.id2label[label]
+                if not is_redacting:
+                    is_redacting = True
+                    redaction_start = start
+                    current_pii_type = pii_type
+                elif not aggregate_redaction and pii_type != current_pii_type:
+                    apply_redaction(masked_text, redaction_start, start, current_pii_type, aggregate_redaction)
+                    redaction_start = start
+                    current_pii_type = pii_type
+            else:
+                if is_redacting:
+                    apply_redaction(masked_text, redaction_start, end, current_pii_type, aggregate_redaction)
+                    is_redacting = False
+
+        if is_redacting:
+            apply_redaction(masked_text, redaction_start, len(masked_text), current_pii_type, aggregate_redaction)
 
     return ''.join(masked_text)
 
