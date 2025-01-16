@@ -16,22 +16,28 @@ A FastAPI-based service for detecting and masking Personally Identifiable Inform
 
 
 ```bash
-% curl -s  -X POST "http://localhost:8001/check-pii" \
+% curl -X POST "http://localhost:8001/check-pii" -i  \
 -H "Content-Type: application/json" \
--d '{"text":"Your text here, my name is Jean-Claude Dusse"}' 
-{
-  "detail": "PII detected in input"
-}
-(piiserver)
+-d '{"text":"Your text here, my name is Jean-Claude Dusse"}'
+HTTP/1.1 400 Bad Request
+date: Thu, 16 Jan 2025 11:40:49 GMT
+server: uvicorn
+content-length: 34
+content-type: application/json
+
+{"detail":"PII detected in input"
 ```
 ```bash
-% curl -s  -X POST "http://localhost:8001/check-pii" \
+% curl -X POST "http://localhost:8001/check-pii" -i \
 -H "Content-Type: application/json" \
--d '{"text":"Your text here, Lorem ipsum dolor sit amet, consectetur adipiscing elit"}' 
-{
-  "status": "OK",
-  "message": "No PII detected"
-}
+-d '{"text":"Your text here, Lorem ipsum dolor sit amet, consectetur adipiscing elit"}'
+HTTP/1.1 200 OK
+date: Thu, 16 Jan 2025 11:40:07 GMT
+server: uvicorn
+content-length: 43
+content-type: application/json
+
+{"status":"OK","message":"No PII detected"
 ```
 
 
