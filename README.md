@@ -1,8 +1,7 @@
-# PII Detection and Masking Service
+# Piiranha Server
 
 ![PII-Ranha Logo](logo.png)
-
-**Author**: Sébastien Campion
+## PII Detection and Masking Service
 
 A FastAPI-based service for detecting and masking Personally Identifiable Information (PII) in text using the PII-Ranha model.
 
@@ -60,6 +59,15 @@ curl -X POST "http://localhost:8000/mask-pii" -H "Content-Type: application/json
 
 The service uses the [PII-Ranha](https://huggingface.co/iiiorg/piiranha-v1-detect-personal-information) model from Hugging Face.
 
+
+## Author & Enterprise Support
+
+**Author**: Sébastien Campion 
+
+Sébastien Campion - sebastien.campion@foss4.eu
+
+**Note**: This project is under active development. Please report any issues or feature requests through the issue tracker.
+
 ## License
 
-[MIT License](LICENSE)
+This project is licensed under the GNU Affero General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
