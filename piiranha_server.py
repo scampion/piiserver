@@ -1,3 +1,5 @@
+import base64
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import torch
@@ -133,6 +135,13 @@ async def check_pii(input_data: TextInput):
         raise HTTPException(status_code=400, detail="PII detected in input")
     return {"status": "OK", "message": "No PII detected"}
 
+@app.post("/check-pii-base64")
+async def check_pii(input_data: TextInput):
+    """Endpoint to check for PII in input text"""
+    text = base64.b64decode(input_data.text).decode('utf-8')
+    if contains_pii(text):
+        raise HTTPException(status_code=400, detail="PII detected in input")
+    return {"status": "OK", "message": "No PII detected"}
 
 @app.post("/mask-pii")
 async def mask_pii_endpoint(input_data: TextInput, aggregate_redaction: bool = True):
