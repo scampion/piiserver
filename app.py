@@ -5,26 +5,35 @@ from transformers import AutoTokenizer, AutoModelForTokenClassification
 
 app = FastAPI()
 
-# Initialize PII detection model
-model_name = "iiiorg/piiranha-v1-detect-personal-information"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForTokenClassification.from_pretrained(model_name)
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model.to(device)
+# Initialize PII detection model with better error handling
+try:
+    model_name = "iiiorg/piiranha-v1-detect-personal-information"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForTokenClassification.from_pretrained(model_name)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+    print("PII detection model loaded successfully")
+except Exception as e:
+    print(f"Failed to load PII detection model: {e}")
+    raise
 
 class TextInput(BaseModel):
     text: str
 
 def contains_pii(text: str) -> bool:
     """Check if text contains any PII using the PII detection model"""
-    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
-    inputs = {k: v.to(device) for k, v in inputs.items()}
-    
-    with torch.no_grad():
-        outputs = model(**inputs)
-    
-    predictions = torch.argmax(outputs.logits, dim=-1)
-    return any(label != model.config.label2id['O'] for label in predictions[0])
+    try:
+        inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+        inputs = {k: v.to(device) for k, v in inputs.items()}
+        
+        with torch.no_grad():
+            outputs = model(**inputs)
+        
+        predictions = torch.argmax(outputs.logits, dim=-1)
+        return any(label != model.config.label2id['O'] for label in predictions[0])
+    except Exception as e:
+        print(f"Error in contains_pii: {e}")
+        return True  # Assume PII exists if we can't check
 
 def mask_pii(text: str, aggregate_redaction: bool = True) -> str:
     """Mask PII in text using the PII detection model"""
@@ -69,13 +78,24 @@ def mask_pii(text: str, aggregate_redaction: bool = True) -> str:
     return ''.join(masked_text)
 
 def apply_redaction(masked_text: list, start: int, end: int, pii_type: str, aggregate_redaction: bool):
-    """Apply redaction to a portion of text"""
-    for j in range(start, end):
-        masked_text[j] = ''
-    if aggregate_redaction:
-        masked_text[start] = '[redacted]'
-    else:
-        masked_text[start] = f'[{pii_type}]'
+    """Apply redaction to a portion of text with better handling"""
+    try:
+        # Ensure we don't go out of bounds
+        start = max(0, min(start, len(masked_text)))
+        end = max(0, min(end, len(masked_text)))
+        
+        # Clear the text range
+        for j in range(start, end):
+            masked_text[j] = ''
+            
+        # Apply the redaction marker
+        if start < len(masked_text):
+            if aggregate_redaction:
+                masked_text[start] = '[redacted]'
+            else:
+                masked_text[start] = f'[{pii_type}]'
+    except Exception as e:
+        print(f"Error in apply_redaction: {e}")
 
 @app.post("/check-pii")
 async def check_pii(input_data: TextInput):
