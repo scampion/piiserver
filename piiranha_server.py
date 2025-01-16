@@ -17,23 +17,26 @@ except Exception as e:
     print(f"Failed to load PII detection model: {e}")
     raise
 
+
 class TextInput(BaseModel):
     text: str
+
 
 def contains_pii(text: str) -> bool:
     """Check if text contains any PII using the PII detection model"""
     try:
         inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
         inputs = {k: v.to(device) for k, v in inputs.items()}
-        
+
         with torch.no_grad():
             outputs = model(**inputs)
-        
+
         predictions = torch.argmax(outputs.logits, dim=-1)
         return any(label != model.config.label2id['O'] for label in predictions[0])
     except Exception as e:
         print(f"Error in contains_pii: {e}")
         return True  # Assume PII exists if we can't check
+
 
 def mask_pii(text: str, aggregate_redaction: bool = True) -> str:
     """Mask PII in text using the PII detection model"""
@@ -77,17 +80,18 @@ def mask_pii(text: str, aggregate_redaction: bool = True) -> str:
 
     return ''.join(masked_text)
 
+
 def apply_redaction(masked_text: list, start: int, end: int, pii_type: str, aggregate_redaction: bool):
     """Apply redaction to a portion of text with better handling"""
     try:
         # Ensure we don't go out of bounds
         start = max(0, min(start, len(masked_text)))
         end = max(0, min(end, len(masked_text)))
-        
+
         # Clear the text range
         for j in range(start, end):
             masked_text[j] = ''
-            
+
         # Apply the redaction marker
         if start < len(masked_text):
             if aggregate_redaction:
@@ -97,12 +101,14 @@ def apply_redaction(masked_text: list, start: int, end: int, pii_type: str, aggr
     except Exception as e:
         print(f"Error in apply_redaction: {e}")
 
+
 @app.post("/check-pii")
 async def check_pii(input_data: TextInput):
     """Endpoint to check for PII in input text"""
     if contains_pii(input_data.text):
         raise HTTPException(status_code=400, detail="PII detected in input")
     return {"status": "OK", "message": "No PII detected"}
+
 
 @app.post("/mask-pii")
 async def mask_pii_endpoint(input_data: TextInput, aggregate_redaction: bool = True):
@@ -115,11 +121,14 @@ async def mask_pii_endpoint(input_data: TextInput, aggregate_redaction: bool = T
         "aggregate_redaction": aggregate_redaction
     }
 
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
     return {"status": "OK"}
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8001)
