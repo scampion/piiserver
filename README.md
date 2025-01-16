@@ -2,6 +2,8 @@
 
 ![PII-Ranha Logo](logo.png)
 
+**Author**: Sébastien Campion
+
 A FastAPI-based service for detecting and masking Personally Identifiable Information (PII) in text using the PII-Ranha model.
 
 ## Features
