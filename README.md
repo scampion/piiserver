@@ -12,6 +12,30 @@ A FastAPI-based service for detecting and masking Personally Identifiable Inform
 - Health Check: Verify service status
 - Token Chunking: Handles long texts by splitting into 256-token chunks
 
+## Examples
+
+
+```bash
+% curl -s  -X POST "http://localhost:8001/check-pii" \
+-H "Content-Type: application/json" \
+-d '{"text":"Your text here, my name is Jean-Claude Dusse"}' 
+{
+  "detail": "PII detected in input"
+}
+(piiserver)
+```
+```bash
+% curl -s  -X POST "http://localhost:8001/check-pii" \
+-H "Content-Type: application/json" \
+-d '{"text":"Your text here, Lorem ipsum dolor sit amet, consectetur adipiscing elit"}' 
+{
+  "status": "OK",
+  "message": "No PII detected"
+}
+```
+
+
+
 ## API Endpoints
 
 ### Check PII
