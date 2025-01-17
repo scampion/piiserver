@@ -12,11 +12,16 @@ A FastAPI-based service for detecting and masking Personally Identifiable Inform
 - Health Check: Verify service status
 - Token Chunking: Handles long texts by splitting into 256-token chunks
 
-## Examples
-
+## Run it 
 
 ```bash
-% curl -X POST "http://localhost:8001/check-pii" -i  \
+  docker run -p 8000:8000 ghcr.io/burgonet-eu/piiserver
+```
+
+## Examples
+
+```bash
+% curl -X POST "http://localhost:8000/check-pii" -i  \
 -H "Content-Type: application/json" \
 -d '{"text":"Your text here, my name is Jean-Claude Dusse"}'
 HTTP/1.1 400 Bad Request
@@ -28,7 +33,7 @@ content-type: application/json
 {"detail":"PII detected in input"
 ```
 ```bash
-% curl -X POST "http://localhost:8001/check-pii" -i \
+% curl -X POST "http://localhost:8000/check-pii" -i \
 -H "Content-Type: application/json" \
 -d '{"text":"Your text here, Lorem ipsum dolor sit amet, consectetur adipiscing elit"}'
 HTTP/1.1 200 OK
