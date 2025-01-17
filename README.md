@@ -2,6 +2,8 @@
 
 ![PII-Ranha Logo](logo.png)
 
+[Version française](README.fr.md)
+
 
 A FastAPI-based service for detecting and masking Personally Identifiable Information (PII) in text using the PII-Ranha model.
 
