@@ -32,7 +32,7 @@ server: uvicorn
 content-length: 34
 content-type: application/json
 
-{"detail":"PII detected in input"
+{"detail":"PII detected in input"}
 ```
 ```bash
 % curl -X POST "http://localhost:8000/check-pii" -i \
@@ -44,7 +44,7 @@ server: uvicorn
 content-length: 43
 content-type: application/json
 
-{"status":"OK","message":"No PII detected"
+{"status":"OK","message":"No PII detected"}
 ```
 
 

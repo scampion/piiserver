@@ -23,7 +23,7 @@ server: uvicorn
 content-length: 34
 content-type: application/json
 
-{"detail":"PII détecté dans l'entrée"
+{"detail":"PII detected in input"}
 ```
 ```bash
 % curl -X POST "http://localhost:8001/check-pii" -i \
@@ -35,7 +35,7 @@ server: uvicorn
 content-length: 43
 content-type: application/json
 
-{"status":"OK","message":"Aucun PII détecté"
+{"status":"OK","message":"No PII detected"}
 ```
 
 ## Points d'accès API
