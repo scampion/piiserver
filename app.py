@@ -1,15 +1,22 @@
-from fastapi import FastAPI, Request, HTTPException
+import base64
+
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import torch
 from transformers import AutoTokenizer, AutoModelForTokenClassification
 
 app = FastAPI()
 
+model_name = "iiiorg/piiranha-v1-detect-personal-information"
+model_name = "./models"
+
+
 # Initialize PII detection model with better error handling
 try:
-    model_name = "iiiorg/piiranha-v1-detect-personal-information"
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    print("Loading PII detection model...")
     model = AutoModelForTokenClassification.from_pretrained(model_name)
+    print("Model loaded successfully")
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     print("PII detection model loaded successfully")
@@ -17,8 +24,10 @@ except Exception as e:
     print(f"Failed to load PII detection model: {e}")
     raise
 
+
 class TextInput(BaseModel):
     text: str
+
 
 def contains_pii(text: str) -> bool:
     """Check if text contains any PII using the PII detection model"""
@@ -27,40 +36,41 @@ def contains_pii(text: str) -> bool:
         # Split text into chunks of MAX_TOKENS tokens
         tokens = tokenizer.encode(text, add_special_tokens=False)
         chunks = [tokens[i:i + MAX_TOKENS] for i in range(0, len(tokens), MAX_TOKENS)]
-        
+
         for chunk in chunks:
             # Convert chunk back to text
             chunk_text = tokenizer.decode(chunk)
-            
+
             # Process each chunk
             inputs = tokenizer(chunk_text, return_tensors="pt", truncation=True, padding=True)
             inputs = {k: v.to(device) for k, v in inputs.items()}
-            
+
             with torch.no_grad():
                 outputs = model(**inputs)
-            
+
             predictions = torch.argmax(outputs.logits, dim=-1)
             if any(label != model.config.label2id['O'] for label in predictions[0]):
                 return True
-                
+
         return False
     except Exception as e:
         print(f"Error in contains_pii: {e}")
         return True  # Assume PII exists if we can't check
 
+
 def mask_pii(text: str, aggregate_redaction: bool = True) -> str:
     """Mask PII in text using the PII detection model"""
     MAX_TOKENS = 256
     masked_text = list(text)
-    
+
     # Split text into chunks of MAX_TOKENS tokens
     tokens = tokenizer.encode(text, add_special_tokens=False)
     chunks = [tokens[i:i + MAX_TOKENS] for i in range(0, len(tokens), MAX_TOKENS)]
-    
+
     for chunk in chunks:
         # Convert chunk back to text
         chunk_text = tokenizer.decode(chunk)
-        
+
         # Process each chunk
         inputs = tokenizer(chunk_text, return_tensors="pt", truncation=True, padding=True)
         inputs = {k: v.to(device) for k, v in inputs.items()}
@@ -101,17 +111,18 @@ def mask_pii(text: str, aggregate_redaction: bool = True) -> str:
 
     return ''.join(masked_text)
 
+
 def apply_redaction(masked_text: list, start: int, end: int, pii_type: str, aggregate_redaction: bool):
     """Apply redaction to a portion of text with better handling"""
     try:
         # Ensure we don't go out of bounds
         start = max(0, min(start, len(masked_text)))
         end = max(0, min(end, len(masked_text)))
-        
+
         # Clear the text range
         for j in range(start, end):
             masked_text[j] = ''
-            
+
         # Apply the redaction marker
         if start < len(masked_text):
             if aggregate_redaction:
@@ -121,12 +132,23 @@ def apply_redaction(masked_text: list, start: int, end: int, pii_type: str, aggr
     except Exception as e:
         print(f"Error in apply_redaction: {e}")
 
+
 @app.post("/check-pii")
 async def check_pii(input_data: TextInput):
     """Endpoint to check for PII in input text"""
     if contains_pii(input_data.text):
         raise HTTPException(status_code=400, detail="PII detected in input")
     return {"status": "OK", "message": "No PII detected"}
+
+
+@app.post("/check-pii-base64")
+async def check_pii(input_data: TextInput):
+    """Endpoint to check for PII in input text"""
+    text = base64.b64decode(input_data.text).decode('utf-8')
+    if contains_pii(text):
+        raise HTTPException(status_code=400, detail="PII detected in input")
+    return {"status": "OK", "message": "No PII detected"}
+
 
 @app.post("/mask-pii")
 async def mask_pii_endpoint(input_data: TextInput, aggregate_redaction: bool = True):
@@ -139,11 +161,14 @@ async def mask_pii_endpoint(input_data: TextInput, aggregate_redaction: bool = T
         "aggregate_redaction": aggregate_redaction
     }
 
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
     return {"status": "OK"}
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
