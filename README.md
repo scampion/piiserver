@@ -16,7 +16,7 @@ A FastAPI-based service for detecting and masking Personally Identifiable Inform
 
 
 ```bash
-% curl -X POST "http://localhost:8001/check-pii" -i  \
+% curl -X POST "http://localhost:8000/check-pii" -i  \
 -H "Content-Type: application/json" \
 -d '{"text":"Your text here, my name is Jean-Claude Dusse"}'
 HTTP/1.1 400 Bad Request
