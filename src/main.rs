@@ -62,24 +62,28 @@ fn main() -> Result<()> {
         [0u32, 31414, 232, 328, 740, 1140, 12695, 69, 46078, 1588, 2],
     ];
 
-    let input_ids_example = &[
-        [0u32, 31414, 232, 328, 740, 1140, 12695, 69, 46078, 1588, 2],
-        [0u32, 328, 740, 1140, 12695, 1588, 2],
-    ];
-
-    // let encoding = _tokenizer.encode("Hello, world!", false);
+    //let encoding = _tokenizer.encode(["Hello, world!", "My name is Sebastien"], false);
     // let input_ids = Tensor::new(&[encoding.get_ids()], &device)?;
     // let input_ids = Tensor::new(input_ids_example, &device)?;
     //
     // // Create token_ids tensor with same shape as input_ids filled with zeros
     // let token_ids = Tensor::zeros(input_ids.dims(), FLOATING_DTYPE, &device)?;
+    let prompt = "Hello, world!";
+    let tokens = _tokenizer
+        .encode(prompt, true)
+        .map_err(E::msg)?
+        .get_ids()
+        .to_vec();
 
-    let token_ids = input_ids.zeros_like()?;
+    let token_ids = Tensor::new(&tokens[..], device)?.unsqueeze(0)?;
+    let token_type_ids = token_ids.zeros_like()?;
+
+    //let token_ids = input_ids.zeros_like()?;
 
     println!("token_ids: {:?}", token_ids.to_vec2::<u32>()?);
-    println!("input_ids: {:?}", input_ids.to_vec2::<u32>()?);
+    println!("token_type_ids: {:?}", token_type_ids.to_vec2::<u32>()?);
 
-    let output = model.forward(&input_ids, &token_ids)?;
+    let output = model.forward(&token_ids, &token_type_ids)?;
     // let output = output.squeeze(0)?;
 
     println!("output: {:?}", output.i((.., 0))?.dims2());
