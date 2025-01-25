@@ -57,20 +57,18 @@ fn main() -> Result<()> {
     let device = &model.device;
 
 
-    let input_ids_example = &[
+    let input_ids_originql = &[
         [0u32, 31414, 232, 328, 740, 1140, 12695, 69, 46078, 1588, 2],
         [0u32, 31414, 232, 328, 740, 1140, 12695, 69, 46078, 1588, 2],
     ];
 
-    let encoding = _tokenizer.encode("Hello, world!", false).unwrap();
-    let ids: Vec<u32> = encoding.get_ids().iter().map(|&x| x as u32).collect();
-    
-    // Pad or truncate to match example length of 11 tokens
-    let mut padded_ids = vec![0u32; 11];
-    let len = ids.len().min(11);
-    padded_ids[..len].copy_from_slice(&ids[..len]);
-    
-    let input_ids = &[padded_ids.clone(), padded_ids];
+    let input_ids_example = &[
+        [0u32, 31414, 232, 328, 740, 1140, 12695, 69, 46078, 1588, 2],
+        [0u32, 328, 740, 1140, 12695, 1588, 2],
+    ];
+
+    let encoding = _tokenizer.encode("Hello, world!", false);
+    let input_ids = Tensor::new(&[encoding.get_ids()], &device)?;
 
     let token_ids = input_ids.zeros_like()?;
 
