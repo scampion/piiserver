@@ -56,14 +56,15 @@ fn main() -> Result<()> {
     let (model, _tokenizer) = build_model_and_tokenizer()?;
     let device = &model.device;
 
-    let encoding = _tokenizer.encode("Hello, world!", false).unwrap();
 
-    let input_ids2 = &[
+    let input_ids_example = &[
         [0u32, 31414, 232, 328, 740, 1140, 12695, 69, 46078, 1588, 2],
         [0u32, 31414, 232, 328, 740, 1140, 12695, 69, 46078, 1588, 2],
     ];
 
-    let input_ids: &[[u32; 11]] = &[encoding.get_ids().iter().map(|&x| x as u32).collect::<Vec<_>>().try_into().unwrap()];
+    let encoding = _tokenizer.encode("Hello, world!", false).unwrap();
+    let input_ids = &[encoding.get_ids().as_ref(), encoding.get_ids().as_ref()];
+
     let token_ids = input_ids.zeros_like()?;
 
     println!("token_ids: {:?}", token_ids.to_vec2::<u32>()?);
