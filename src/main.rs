@@ -63,7 +63,14 @@ fn main() -> Result<()> {
     ];
 
     let encoding = _tokenizer.encode("Hello, world!", false).unwrap();
-    let input_ids = &[encoding.get_ids().as_ref(), encoding.get_ids().as_ref()];
+    let ids: Vec<u32> = encoding.get_ids().iter().map(|&x| x as u32).collect();
+    
+    // Pad or truncate to match example length of 11 tokens
+    let mut padded_ids = vec![0u32; 11];
+    let len = ids.len().min(11);
+    padded_ids[..len].copy_from_slice(&ids[..len]);
+    
+    let input_ids = &[padded_ids.clone(), padded_ids];
 
     let token_ids = input_ids.zeros_like()?;
 
