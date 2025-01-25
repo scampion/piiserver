@@ -63,7 +63,7 @@ fn main() -> Result<()> {
         [0u32, 31414, 232, 328, 740, 1140, 12695, 69, 46078, 1588, 2],
     ];
 
-    let input_ids = encoding.get_ids().as_ref();
+    let input_ids: &[[u32; 11]] = &[encoding.get_ids().iter().map(|&x| x as u32).collect::<Vec<_>>().try_into().unwrap()];
     let token_ids = input_ids.zeros_like()?;
 
     println!("token_ids: {:?}", token_ids.to_vec2::<u32>()?);
