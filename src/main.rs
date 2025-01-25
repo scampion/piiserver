@@ -67,8 +67,12 @@ fn main() -> Result<()> {
         [0u32, 328, 740, 1140, 12695, 1588, 2],
     ];
 
-    let encoding = _tokenizer.encode("Hello, world!", false);
-    let input_ids = Tensor::new(&[encoding.get_ids()], &device)?;
+    // let encoding = _tokenizer.encode("Hello, world!", false);
+    // let input_ids = Tensor::new(&[encoding.get_ids()], &device)?;
+    // let input_ids = Tensor::new(input_ids_example, &device)?;
+    //
+    // // Create token_ids tensor with same shape as input_ids filled with zeros
+    // let token_ids = Tensor::zeros(input_ids.dims(), FLOATING_DTYPE, &device)?;
 
     let token_ids = input_ids.zeros_like()?;
 
