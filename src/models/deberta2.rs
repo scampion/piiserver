@@ -408,7 +408,7 @@ impl DebertaV2Layer {
 
         // Return the layer output and attention matrix (if requested)
         if output_attentions {
-            Ok((layer_output, Some(att_matrix)))
+            Ok((layer_output, att_matrix))
         } else {
             Ok((layer_output, None))
         }
