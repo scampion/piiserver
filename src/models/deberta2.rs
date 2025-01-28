@@ -509,7 +509,7 @@ impl DebertaV2Encoder {
             let mut embeddings = rel_embeddings.embeddings().clone();
             if self.norm_rel_ebd.contains(&"layer_norm".to_string()) {
                 //embeddings = self.layer_norm.as_ref().unwrap().forward(&embeddings)?;
-                embeddings = self.layer_norm().forward(&embeddings)?;
+                embeddings = self.layer_norm(&embeddings);
             }
             Some(embeddings)
         } else {
