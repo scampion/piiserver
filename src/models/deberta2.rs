@@ -9,7 +9,7 @@ use candle_nn::Conv1d;
 use candle_nn::Conv1dConfig;
 
 use candle_core::{DType, Device, Module, Result, Tensor};
-use candle_nn::{linear, embedding, Embedding, VarBuilder};
+use candle_nn::{embedding, Embedding, VarBuilder};
 //use crate::models::modelling_outputs::{SequenceClassifierOutput, TokenClassifierOutput, QuestionAnsweringModelOutput};
 //use crate::models::model_utils::{HiddenAct, HiddenActLayer, Linear, LayerNorm, PositionEmbeddingType};
 
@@ -19,6 +19,13 @@ use serde::Deserialize;
 
 pub const FLOATING_DTYPE: DType = DType::F32;
 pub const LONG_DTYPE: DType = DType::I64;
+
+
+fn linear(size1: usize, size2: usize, vb: VarBuilder) -> Result<Linear> {
+    let weight = vb.get((size2, size1), "weight")?;
+    let bias = vb.get(size2, "bias")?;
+    Ok(Linear::new(weight, Some(bias)))
+}
 
 
 fn cumsum_2d(mask: &Tensor, dim: u8, device: &Device) -> Result<Tensor> {
@@ -238,7 +245,7 @@ impl DebertaV2Embeddings {
 
         let position_biased_input = config.position_biased_input;
 
-        Self {
+        Ok(Self {
             word_embeddings,
             position_embeddings,
             token_type_embeddings,
@@ -247,7 +254,7 @@ impl DebertaV2Embeddings {
             dropout: Dropout::new(config.hidden_dropout_prob),
             padding_idx,
             position_biased_input
-        }
+        })
     }
 
     pub fn forward(
@@ -477,14 +484,18 @@ impl DebertaV2Encoder {
     fn load(vb: VarBuilder, config: &DebertaV2Config) -> Result<Self> {
         let layer = (0..config.num_hidden_layers)
             .map(|index| DebertaV2Layer::load(vb.pp(&format!("layer.{index}")), config))
-            .collect();
+            .collect::<Result<Vec<_>>>()?;
+
+        // let layer: Vec<DebertaV2Layer> = (0..config.num_hidden_layers)
+        //     .map(|index| DebertaV2Layer::load(vb.pp(&format!("layer.{index}")), config))
+        //     .collect();
         // Ok(DebertaV2Encoder { layers })
-        let layer: Vec<DebertaV2Layer> = (0..config.num_hidden_layers)
-            .map(|index| {
-                DebertaV2Layer::load(vb.pp(&format!("layer.{index}")), config)
-                    .map_err(|e| format!("Failed to load layer {index}: {e}"))
-            })
-            .collect()?;
+        // let layer: Vec<DebertaV2Layer> = (0..config.num_hidden_layers)
+        //     .map(|index| {
+        //         DebertaV2Layer::load(vb.pp(&format!("layer.{index}")), config)
+        //             .map_err(|e| format!("Failed to load layer {index}: {e}"))
+        //     })
+        //     .collect()?;
 
         let relative_attention = config.relative_attention;
         let max_relative_positions: i64 = if config.max_relative_positions < 1 {
@@ -502,7 +513,7 @@ impl DebertaV2Encoder {
 
         let rel_embeddings = if relative_attention {
             Some(embedding(
-                pos_ebd_size,
+                pos_ebd_size as usize,
                 config.hidden_size,
                 vb.pp("rel_embeddings"),
             )?)
@@ -528,7 +539,7 @@ impl DebertaV2Encoder {
 
 
         let conv = if config.conv_kernel_size > 0 {
-            Some(ConvLayer::load(vb, config))
+            Some(ConvLayer::load(vb, config)?)
         } else {
             None
         };
@@ -552,7 +563,7 @@ impl DebertaV2Encoder {
             let mut embeddings = rel_embeddings.embeddings().clone();
             if self.norm_rel_ebd.contains(&"layer_norm".to_string()) {
                 //embeddings = self.layer_norm.as_ref().unwrap().forward(&embeddings)?;
-                embeddings = &self.layer_norm.forward(&embeddings);
+                embeddings = self.layer_norm?.forward(&embeddings).ok().unwrap();
             }
             Some(embeddings)
         } else {
@@ -604,7 +615,7 @@ impl DebertaV2Encoder {
             attention_mask.clone()
         } else {
             //attention_mask.sum_dim_intlist(&[-2], false, Kind::Bool) > 0
-            attention_mask.sum_keepdim(-2)?.gt(0)?
+            attention_mask.sum_keepdim(-2)?.gt(0)
         };
 
         let attention_mask = self.get_attention_mask(attention_mask);
@@ -781,10 +792,8 @@ impl DisentangledSelfAttention {
 
 
         if hidden_size % num_attention_heads != 0 {
-            return Err(format!(
-                "The hidden size ({}) is not a multiple of the number of attention heads ({})",
-                hidden_size, num_attention_heads
-            ).into());
+            // except exit with error
+            return Err("The hidden size is not a multiple of the number of attention heads.".into());
         }
 
         let query_proj = linear(hidden_size, all_head_size, vb.pp("query_proj"))?;
@@ -844,7 +853,7 @@ impl DisentangledSelfAttention {
         new_x_shape.pop();
         new_x_shape.push(attention_heads);
         new_x_shape.push(self.attention_head_size);
-        let x = x.reshape(&new_x_shape)?;
+        let x = x.reshape(&*new_x_shape)?;
         x.permute(&[0, 2, 1, 3])?.contiguous()?.reshape(&[-1, x.dim(1)?, x.dim(3)?])
     }
 
@@ -1052,7 +1061,7 @@ impl ConvLayer {
         }
     }
 
-    fn forward(&self, hidden_states: &Tensor, residual_states: &Tensor, input_mask: Option<&Tensor>) ->  Result<Tensor>  {
+    fn forward(&self, hidden_states: &Tensor, residual_states: &Tensor, input_mask: &Tensor) ->  Result<Tensor>  {
         let device = hidden_states.device();
         let dtype = hidden_states.dtype();
 
@@ -1075,7 +1084,7 @@ impl ConvLayer {
         let output = self.layer_norm.forward(&layer_norm_input)?;
 
         // Apply input mask to output if provided
-        let output_states = if let Some(mask) = input_mask {
+        let output_states = if let mask= input_mask {
             let mask = if mask.dims().len() != layer_norm_input.dims().len() {
                 if mask.dims().len() == 4 {
                     mask.squeeze(1)?.squeeze(1)?
