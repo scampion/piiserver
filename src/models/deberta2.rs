@@ -1077,9 +1077,9 @@ impl ConvLayer {
         let out = self.conv.forward(&hidden_states.permute((0, 2, 1))?)?.permute((0, 2, 1))?;
 
         // Apply mask if provided
-        let out = if let mask = input_mask {
+        let out = if let Some(mask) = input_mask {
             let rmask = mask.eq(0.0)?;
-            out.masked_fill(&rmask.unsqueeze(-1)?.expand(&out.shape())?, 0.0)?
+            out.masked_fill(&rmask.unsqueeze(-1)?.expand(&*out.shape())?, 0.0)?
         } else {
             out
         };
