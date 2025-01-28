@@ -561,7 +561,7 @@ impl DebertaV2Encoder {
             attention_mask.clone()
         } else {
             //attention_mask.sum_dim_intlist(&[-2], false, Kind::Bool) > 0
-            attention_mask.sum_along_dim(-2, false).gt(0)
+            attention_mask.sum_dim(-2, false)?.gt(0)?
         };
 
         let attention_mask = self.get_attention_mask(attention_mask);
