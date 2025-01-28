@@ -82,6 +82,47 @@ pub fn create_position_ids_from_input_ids(
     Ok(incremental_indices)
 }
 
+
+fn build_relative_position(
+    query_layer: &Tensor,
+    key_layer: &Tensor,
+    bucket_size: i64,
+    max_position: i64,
+) -> Result<Tensor> {
+    let query_size = query_layer.dim(query_layer.dims().len() - 2)?;
+    let key_size = key_layer.dim(key_layer.dims().len() - 2)?;
+
+    // Create tensors for query and key IDs
+    let q_ids = Tensor::arange(0, query_size as i64, &Device::Cpu)?.to_dtype(DType::I64)?;
+    let k_ids = Tensor::arange(0, key_size as i64, &Device::Cpu)?.to_dtype(DType::I64)?;
+
+    // Compute relative positions
+    let rel_pos_ids = q_ids.unsqueeze(1)?.broadcast_sub(&k_ids.unsqueeze(0)?)?;
+
+    // Apply bucketization if bucket_size and max_position are provided
+    let rel_pos_ids = if bucket_size > 0 && max_position > 0 {
+        make_log_bucket_position(&rel_pos_ids, bucket_size, max_position)?
+    } else {
+        rel_pos_ids
+    };
+
+    // Ensure the tensor is of type i64
+    let rel_pos_ids = rel_pos_ids.to_dtype(DType::I64)?;
+
+    // Truncate to the query size and add a batch dimension
+    let rel_pos_ids = rel_pos_ids.narrow(0, 0, query_size)?;
+    let rel_pos_ids = rel_pos_ids.unsqueeze(0)?;
+
+    Ok(rel_pos_ids)
+}
+
+fn make_log_bucket_position(rel_pos_ids: &Tensor, bucket_size: i64, max_position: i64) -> Result<Tensor> {
+    // Placeholder for the bucketing logic
+    // You would implement the specific bucketing logic here
+    Ok(rel_pos_ids.clone())
+}
+
+
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct DebertaV2Config {
     pub vocab_size: usize,
@@ -107,6 +148,7 @@ pub struct DebertaV2Config {
     pub position_buckets: i64,
     pub norm_rel_ebd: Option<String>,
     pub conv_kernel_size: usize,
+    pub share_att_key: bool,
 }
 
 impl Default for DebertaV2Config {
@@ -509,7 +551,7 @@ impl DebertaV2Encoder {
             let mut embeddings = rel_embeddings.embeddings().clone();
             if self.norm_rel_ebd.contains(&"layer_norm".to_string()) {
                 //embeddings = self.layer_norm.as_ref().unwrap().forward(&embeddings)?;
-                embeddings = self.layer_norm(&embeddings);
+                embeddings = &self.layer_norm.forward(&embeddings);
             }
             Some(embeddings)
         } else {
