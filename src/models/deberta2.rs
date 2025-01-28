@@ -557,18 +557,24 @@ impl DebertaV2Encoder {
         })
     }
 
-    pub fn get_rel_embedding(&self) -> Option<Tensor> {
-        if let Some(rel_embeddings) = &self.rel_embeddings {
-            // Access the embeddings tensor directly since Embedding doesn't have a weight() method
-            let mut embeddings = rel_embeddings.embeddings().clone();
-            if self.norm_rel_ebd.contains(&"layer_norm".to_string()) {
-                embeddings = self.layer_norm.as_ref().unwrap().forward(&embeddings)?;
-            }
-            Some(embeddings)
+    fn get_rel_embedding(&self) -> Result<Option<Tensor>> {
+        let mut rel_embeddings = if self.relative_attention {
+            &self.rel_embeddings
         } else {
             None
+        };
+
+        if let Some(ref embeddings) = rel_embeddings {
+            if self.norm_rel_ebd.contains(&"layer_norm".to_string()) {
+                if let Some(layer_norm) = &self.layer_norm {
+                    rel_embeddings = Some(layer_norm.forward(embeddings)?);
+                }
+            }
         }
+
+        Ok(rel_embeddings)
     }
+
 
     pub fn get_attention_mask(&self, attention_mask: &Tensor) -> Result<Tensor> {
         let dims = attention_mask.dims();
@@ -1027,7 +1033,7 @@ pub struct ConvLayer {
     conv_act: Activation,
     layer_norm: LayerNorm,
     dropout: Dropout,
-    config: ConvLayerConfig,
+    config: DebertaV2Config,
 }
 
 impl ConvLayer {
@@ -1054,13 +1060,13 @@ impl ConvLayer {
 
         let dropout = Dropout::new(config.hidden_dropout_prob);
 
-        Self {
+        Ok(Self {
             conv,
             conv_act: config.conv_act,
             layer_norm,
             dropout,
             config,
-        }
+        })
     }
 
     fn forward(&self, hidden_states: &Tensor, residual_states: &Tensor, input_mask: &Tensor) ->  Result<Tensor>  {
@@ -1071,7 +1077,7 @@ impl ConvLayer {
         let out = self.conv.forward(&hidden_states.permute((0, 2, 1))?)?.permute((0, 2, 1))?;
 
         // Apply mask if provided
-        let out = if let Some(mask) = input_mask {
+        let out = if let mask = input_mask {
             let rmask = mask.eq(0.0)?;
             out.masked_fill(&rmask.unsqueeze(-1)?.expand(&out.shape())?, 0.0)?
         } else {
