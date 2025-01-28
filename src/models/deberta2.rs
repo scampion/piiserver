@@ -6,6 +6,7 @@ use crate::models::model_utils::HiddenAct;
 use crate::models::model_utils::HiddenActLayer;
 use candle_nn::Activation;
 use candle_nn::Conv1d;
+use candle_nn::Conv1dConfig;
 
 use candle_core::{DType, Device, Module, Result, Tensor};
 use candle_nn::{linear, embedding, Embedding, VarBuilder};
