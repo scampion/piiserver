@@ -514,14 +514,15 @@ impl DebertaV2Encoder {
         }
     }
 
-    pub fn get_attention_mask(&self, attention_mask: &Tensor) -> Tensor {
-        if attention_mask.dims() <= 2 {
-            let extended_attention_mask = attention_mask.unsqueeze(1).unwrap().unsqueeze(2).unwrap();
-            extended_attention_mask * extended_attention_mask.squeeze(-2).unsqueeze(-1)
-        } else if attention_mask.dims() == 3 {
-            attention_mask.unsqueeze(1)?
+    pub fn get_attention_mask(&self, attention_mask: &Tensor) -> Result<Tensor> {
+        let dims = attention_mask.dims();
+        if dims.len() <= 2 {
+            let extended_attention_mask = attention_mask.unsqueeze(1)?.unsqueeze(2)?;
+            Ok(extended_attention_mask * extended_attention_mask.squeeze(-2)?.unsqueeze(-1)?)
+        } else if dims.len() == 3 {
+            Ok(attention_mask.unsqueeze(1)?)
         } else {
-            attention_mask.clone()
+            Ok(attention_mask.clone())
         }
     }
 
