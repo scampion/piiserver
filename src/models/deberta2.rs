@@ -805,13 +805,13 @@ impl DisentangledSelfAttention {
 
         let pos_dropout = Dropout::new(config.hidden_dropout_prob);
 
-        let pos_key_proj = if !share_att_key && pos_att_type.contains(&"c2p".to_string()) {
+        let pos_key_proj = if !share_att_key && pos_att_type.as_ref().map_or(false, |v| v.contains(&"c2p".to_string())) {
             Some(linear(hidden_size, all_head_size, vb.pp("pos_key_proj"))?)
         } else {
             None
         };
 
-        let pos_query_proj = if !share_att_key && matches!(pos_att_type, Some(ref v) if v.contains(&"p2c".to_string())) {
+        let pos_query_proj = if !share_att_key && pos_att_type.as_ref().map_or(false, |v| v.contains(&"p2c".to_string())) {
             Some(linear(hidden_size, all_head_size, vb.pp("pos_query_proj"))?)
         } else {
             None
