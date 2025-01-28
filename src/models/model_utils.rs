@@ -71,6 +71,7 @@ impl Linear {
     }
 }
 
+#[derive(Debug)]
 pub struct Dropout {
     #[allow(dead_code)]
     pr: f64,
