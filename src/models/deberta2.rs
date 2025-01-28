@@ -750,8 +750,8 @@ impl DisentangledSelfAttention {
 
         let position_buckets = config.position_buckets;
         let max_relative_positions = config.max_relative_positions.unwrap_or(config.max_position_embeddings);
-        let pos_ebd_size = if let Some(buckets) = position_buckets {
-            buckets
+        let pos_ebd_size = if position_buckets > 0 {
+            position_buckets
         } else {
             max_relative_positions
         };
