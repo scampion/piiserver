@@ -562,8 +562,7 @@ impl DebertaV2Encoder {
             // Access the embeddings tensor directly since Embedding doesn't have a weight() method
             let mut embeddings = rel_embeddings.embeddings().clone();
             if self.norm_rel_ebd.contains(&"layer_norm".to_string()) {
-                //embeddings = self.layer_norm.as_ref().unwrap().forward(&embeddings)?;
-                embeddings = self.layer_norm?.forward(&embeddings).ok().unwrap();
+                embeddings = self.layer_norm.as_ref().unwrap().forward(&embeddings)?;
             }
             Some(embeddings)
         } else {
@@ -872,7 +871,10 @@ impl DisentangledSelfAttention {
         let value_layer = self.transpose_for_scores(self.value_proj.forward(hidden_states)?, self.num_attention_heads)?;
 
         let mut rel_att = None;
-        let scale_factor = 1 + self.pos_att_type.iter().filter(|&x| x == "c2p" || x == "p2c").count();
+        let scale_factor = 1 + self.pos_att_type.as_ref()
+            .map_or(0, |types| types.iter()
+                .filter(|&x| x == "c2p" || x == "p2c")
+                .count());
         let scale = (query_layer.dim(2)? as f64).sqrt() * scale_factor as f64;
         let mut attention_scores = query_layer.matmul(&key_layer.transpose(1, 2)?)? / scale;
 
