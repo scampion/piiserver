@@ -177,6 +177,7 @@ impl Default for DebertaV2Config {
             position_buckets: -1,
             norm_rel_ebd: None,
             conv_kernel_size: 0,
+            share_att_key: true,
 
         }
     }
@@ -694,7 +695,7 @@ impl DebertaV2Attention {
         let attention_output = self.output.forward(&self_output, query_states);
 
         if output_attentions {
-            (attention_output, Some(att_matrix))
+            (attention_output, att_matrix)
         } else {
             (attention_output, None)
         }
