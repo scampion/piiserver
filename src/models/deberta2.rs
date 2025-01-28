@@ -422,9 +422,9 @@ pub struct DebertaV2Encoder {
     relative_attention: bool,
     max_relative_positions: i64,
     position_buckets: i64,
-    rel_embeddings: Option<nn::Embedding>,
+    rel_embeddings: Option<Embedding>,
     norm_rel_ebd: Vec<String>,
-    layer_norm: Option<nn::LayerNorm>,
+    layer_norm: Option<LayerNorm>,
     conv: Option<ConvLayer>,
     gradient_checkpointing: bool,
 }
@@ -713,7 +713,7 @@ pub struct DisentangledSelfAttention {
     key_proj: Linear,
     value_proj: Linear,
     share_att_key: bool,
-    pos_att_type: Vec<String>,
+    pos_att_type: Option<Vec<String>>,
     relative_attention: bool,
     position_buckets: Option<usize>,
     max_relative_positions: usize,
@@ -966,7 +966,7 @@ pub struct ConvLayerConfig {
 }
 
 pub struct ConvLayer {
-    conv: conv1d::Conv1d,
+    conv: Conv1d,
     conv_act: Activation,
     layer_norm: LayerNorm,
     dropout: Dropout,
@@ -979,7 +979,7 @@ impl ConvLayer {
             config.hidden_size,
             config.hidden_size,
             config.conv_kernel_size,
-            conv1d::Conv1dConfig {
+            Conv1dConfig {
                 padding: (config.conv_kernel_size - 1) / 2,
                 groups: config.conv_groups,
                 ..Default::default()
