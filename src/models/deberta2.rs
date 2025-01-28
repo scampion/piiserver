@@ -505,9 +505,10 @@ impl DebertaV2Encoder {
 
     pub fn get_rel_embedding(&self) -> Option<Tensor> {
         if let Some(rel_embeddings) = &self.rel_embeddings {
-            let mut embeddings = rel_embeddings.weight();
+            // Access the embeddings tensor directly since Embedding doesn't have a weight() method
+            let mut embeddings = rel_embeddings.embeddings().clone();
             if self.norm_rel_ebd.contains(&"layer_norm".to_string()) {
-                embeddings = self.layer_norm.as_ref().unwrap().forward(&embeddings);
+                embeddings = self.layer_norm.as_ref().unwrap().forward(&embeddings)?;
             }
             Some(embeddings)
         } else {
